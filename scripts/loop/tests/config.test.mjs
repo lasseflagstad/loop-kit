@@ -79,6 +79,29 @@ test('migrations defaults numberWidth to 4 and requires dir', () => {
   );
 });
 
+test('scout is optional and omitted when absent (like migrations)', () => {
+  assert.equal('scout' in validateConfig(MINIMAL), false);
+});
+
+test('validateConfig accepts a scout section and passes through its set keys', () => {
+  const c = validateConfig({
+    ...MINIMAL,
+    scout: { maxProposals: 3, checks: { emDash: false, testsForSources: true }, maxAssetBytes: 1024 },
+  });
+  assert.equal(c.scout.maxProposals, 3);
+  assert.deepEqual(c.scout.checks, { emDash: false, testsForSources: true });
+  assert.equal(c.scout.maxAssetBytes, 1024);
+});
+
+test('scout validation rejects unknown checks and bad shapes', () => {
+  assert.throws(() => validateConfig({ ...MINIMAL, scout: { checks: { nope: true } } }), /unknown scout check/);
+  assert.throws(() => validateConfig({ ...MINIMAL, scout: { checks: { emDash: 'yes' } } }), ConfigError);
+  assert.throws(() => validateConfig({ ...MINIMAL, scout: { maxProposals: 0 } }), ConfigError);
+  assert.throws(() => validateConfig({ ...MINIMAL, scout: { maxAssetBytes: -1 } }), ConfigError);
+  assert.throws(() => validateConfig({ ...MINIMAL, scout: { include: 'x' } }), ConfigError);
+  assert.throws(() => validateConfig({ ...MINIMAL, scout: [] }), ConfigError);
+});
+
 test('validateConfig rejects non-objects', () => {
   assert.throws(() => validateConfig(null), ConfigError);
   assert.throws(() => validateConfig([]), ConfigError);

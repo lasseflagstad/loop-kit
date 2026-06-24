@@ -6,6 +6,9 @@ import {
   createQueue,
   validateQueue,
   addJob,
+  addProposedJob,
+  fingerprintsInQueue,
+  renderProposalSpec,
   getJob,
   updateJob,
   markShipped,
@@ -15,6 +18,16 @@ import {
 } from '../queue-lib.mjs';
 
 const T = '2026-06-24T00:00:00.000Z';
+
+const PROPOSAL = {
+  title: 'Add a test for foo.mjs',
+  description: 'foo.mjs has no matching test.',
+  requirements: ['Create tests/foo.test.mjs', 'It imports foo.mjs and passes'],
+  evidence: { check: 'testsForSources', file: 'foo.mjs', line: null, excerpt: '', occurrences: 1 },
+  impactEffort: 'Impact: medium. Effort: medium.',
+  fingerprint: 'testsForSources:foo.mjs',
+  createdAt: T,
+};
 
 function withJob(extra = {}) {
   return addJob(createQueue(), { title: 'A', spec: 'do a', createdAt: T, ...extra });
@@ -148,6 +161,84 @@ test('nextQueuedJob returns undefined when nothing is queued', () => {
   let q = withJob();
   q = updateJob(q, '001', { status: 'in_progress' });
   assert.equal(nextQueuedJob(q), undefined);
+});
+
+// ---------------------------------------------------------------------------
+// proposed status and addProposedJob (the scout's only write)
+// ---------------------------------------------------------------------------
+test('addProposedJob appends a proposed job carrying the structured proposal', () => {
+  const q = addProposedJob(createQueue(), PROPOSAL);
+  assert.equal(q.jobs.length, 1);
+  const job = q.jobs[0];
+  assert.equal(job.id, '001');
+  assert.equal(job.status, 'proposed');
+  assert.equal(job.title, PROPOSAL.title);
+  assert.deepEqual(job.proposal.requirements, PROPOSAL.requirements);
+  assert.equal(job.proposal.fingerprint, PROPOSAL.fingerprint);
+  assert.equal(job.proposal.check, 'testsForSources');
+  // The requirements are rendered into the spec the runner would build from.
+  for (const r of PROPOSAL.requirements) assert.ok(job.spec.includes(r));
+});
+
+test('addProposedJob is a pure append (does not mutate the input)', () => {
+  const q0 = createQueue();
+  const q1 = addProposedJob(q0, PROPOSAL);
+  assert.equal(q0.jobs.length, 0);
+  assert.equal(q1.jobs.length, 1);
+});
+
+test('addProposedJob requires a non-empty diff-checkable requirements list', () => {
+  assert.throws(() => addProposedJob(createQueue(), { ...PROPOSAL, requirements: [] }), QueueError);
+  assert.throws(() => addProposedJob(createQueue(), { ...PROPOSAL, requirements: [''] }), QueueError);
+  assert.throws(() => addProposedJob(createQueue(), { ...PROPOSAL, requirements: undefined }), QueueError);
+});
+
+test('addProposedJob requires evidence, impactEffort, fingerprint, and createdAt', () => {
+  assert.throws(() => addProposedJob(createQueue(), { ...PROPOSAL, evidence: null }), QueueError);
+  assert.throws(() => addProposedJob(createQueue(), { ...PROPOSAL, evidence: { check: 'x' } }), QueueError);
+  assert.throws(() => addProposedJob(createQueue(), { ...PROPOSAL, impactEffort: '' }), QueueError);
+  assert.throws(() => addProposedJob(createQueue(), { ...PROPOSAL, fingerprint: '' }), QueueError);
+  assert.throws(() => addProposedJob(createQueue(), { ...PROPOSAL, createdAt: undefined }), QueueError);
+});
+
+test('a proposed job can be promoted to queued or parked in blocked, but not run directly', () => {
+  const q = addProposedJob(createQueue(), PROPOSAL);
+  // proposed -> queued (a human approves)
+  assert.equal(getJob(updateJob(q, '001', { status: 'queued' }), '001').status, 'queued');
+  // proposed -> blocked (a human parks it)
+  assert.equal(getJob(updateJob(q, '001', { status: 'blocked' }), '001').status, 'blocked');
+  // proposed -> in_progress / shipped is illegal: it must be approved first.
+  assert.throws(() => updateJob(q, '001', { status: 'in_progress' }), QueueError);
+  assert.throws(() => updateJob(q, '001', { status: 'shipped' }), QueueError);
+});
+
+test('nextQueuedJob never returns a proposed job (proposals are not runnable)', () => {
+  let q = addProposedJob(createQueue(), PROPOSAL); // 001 proposed
+  assert.equal(nextQueuedJob(q, { includeHumanGated: true }), undefined);
+  q = addJob(q, { title: 'real', spec: 'do', createdAt: T }); // 002 queued
+  assert.equal(nextQueuedJob(q).id, '002');
+});
+
+test('fingerprintsInQueue collects proposal fingerprints across all statuses', () => {
+  let q = addProposedJob(createQueue(), PROPOSAL);
+  q = addProposedJob(q, { ...PROPOSAL, title: 'B', fingerprint: 'emDash:notes.md', evidence: { check: 'emDash', file: 'notes.md' } });
+  const fps = fingerprintsInQueue(q);
+  assert.ok(fps.has('testsForSources:foo.mjs'));
+  assert.ok(fps.has('emDash:notes.md'));
+  assert.equal(fps.size, 2);
+});
+
+test('renderProposalSpec renders description, requirements, evidence, and impact', () => {
+  const spec = renderProposalSpec(PROPOSAL);
+  assert.ok(spec.includes(PROPOSAL.description));
+  assert.ok(spec.includes('Requirements (diff-checkable)'));
+  for (const r of PROPOSAL.requirements) assert.ok(spec.includes(`- [ ] ${r}`));
+  assert.ok(spec.includes('Impact and effort'));
+});
+
+test('validateQueue accepts the proposed status', () => {
+  const q = addProposedJob(createQueue(), PROPOSAL);
+  assert.equal(validateQueue(q), q);
 });
 
 test('validateQueue rejects malformed queues', () => {

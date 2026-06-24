@@ -83,6 +83,87 @@
         }
       },
       "required": ["dir"]
+    },
+    "scout": {
+      "type": "object",
+      "description": "The scout: a read-only job-proposer that scans the repo and adds ranked, diff-checkable jobs to the queue as 'proposed'. Every field is optional; omitted fields use the scout's built-in defaults.",
+      "additionalProperties": false,
+      "properties": {
+        "maxProposals": {
+          "type": "integer",
+          "description": "Maximum jobs the scout proposes per scan.",
+          "minimum": 1,
+          "default": 5
+        },
+        "checks": {
+          "type": "object",
+          "description": "Each scan check, toggleable. The two site checks default off; the rest default on.",
+          "additionalProperties": false,
+          "properties": {
+            "emDash": {
+              "type": "boolean",
+              "description": "Flag em-dash characters (the kit forbids them).",
+              "default": true
+            },
+            "todoMarkers": {
+              "type": "boolean",
+              "description": "Flag leftover TODO/FIXME markers in code.",
+              "default": true
+            },
+            "testsForSources": {
+              "type": "boolean",
+              "description": "Flag source files with no matching test.",
+              "default": true
+            },
+            "oversizedAssets": {
+              "type": "boolean",
+              "description": "Flag committed files over maxAssetBytes.",
+              "default": true
+            },
+            "brokenInternalLinks": {
+              "type": "boolean",
+              "description": "Flag internal links that resolve to nothing. For repos that build a site.",
+              "default": false
+            },
+            "missingMetaDescription": {
+              "type": "boolean",
+              "description": "Flag HTML pages with no meta description. For repos that build a site.",
+              "default": false
+            }
+          }
+        },
+        "include": {
+          "type": "array",
+          "description": "Glob patterns for files to scan. Default: everything.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "exclude": {
+          "type": "array",
+          "description": "Glob patterns to skip (node_modules, build output, lockfiles, and so on).",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "maxAssetBytes": {
+          "type": "integer",
+          "description": "A committed file larger than this (bytes) is flagged as an oversized asset.",
+          "minimum": 1,
+          "default": 512000
+        },
+        "sourceExtensions": {
+          "type": "array",
+          "description": "Extensions treated as source for the tests-for-sources check.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "commentScanExtensions": {
+          "type": "array",
+          "description": "Extensions scanned for TODO/FIXME markers (documentation is excluded by default).",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "siteDir": {
+          "type": ["string", "null"],
+          "description": "When set, the site checks are scoped to this directory and '/'-rooted links resolve under it.",
+          "minLength": 1
+        }
+      }
     }
   }
 }

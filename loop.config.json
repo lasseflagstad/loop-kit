@@ -11,5 +11,16 @@
   "notify": {
     "channel": "none"
   },
-  "mergeMode": "auto-merge-on-green"
+  "mergeMode": "auto-merge-on-green",
+  "scout": {
+    "maxProposals": 5,
+    "checks": {
+      "emDash": true,
+      "todoMarkers": true,
+      "testsForSources": true,
+      "oversizedAssets": true,
+      "brokenInternalLinks": false,
+      "missingMetaDescription": false
+    }
+  }
 }

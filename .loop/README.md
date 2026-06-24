@@ -12,8 +12,21 @@ discipline in code:
 - **Never rewrite a shipped job.** Once `status` is `shipped`, the record is
   frozen.
 - **Status only moves along the allowed graph:**
-  `queued → in_progress → shipped`, with `blocked` reachable from `queued` and
-  `in_progress`, and recoverable back to `queued`/`in_progress`.
+  `proposed → queued → in_progress → shipped`, with `blocked` reachable from
+  `proposed`, `queued`, and `in_progress`, and recoverable back to
+  `queued`/`in_progress`.
+
+## Statuses
+
+- `proposed` - written by the scout (`/scout`), a read-only job-proposer. A
+  proposed job is **not runnable**: the runner only ever picks `queued` jobs, so
+  a proposal cannot be built until a human promotes it (by changing its status
+  from `proposed` to `queued`). The scout may only ADD proposed jobs; it never
+  edits or removes a `queued`/`in_progress`/`blocked`/`shipped` job.
+- `queued` - approved and waiting for the runner.
+- `in_progress` - the runner is building it.
+- `shipped` - merged on a green gate; the record is frozen.
+- `blocked` - parked; recoverable to `queued`/`in_progress`.
 
 ## Job schema
 
@@ -22,7 +35,7 @@ discipline in code:
   "id": "001",                 // immutable, zero-padded, assigned centrally
   "title": "Short title",      // immutable
   "spec": "What to build",     // immutable (text or a pointer to a spec file)
-  "status": "queued",          // queued | in_progress | shipped | blocked
+  "status": "queued",          // proposed | queued | in_progress | shipped | blocked
   "humanGated": false,         // additive: false -> true only
   "createdAt": "2026-06-24T00:00:00.000Z", // immutable
   "branch": null,              // set by the runner
@@ -32,6 +45,26 @@ discipline in code:
   "note": null                 // mutable free-form
 }
 ```
+
+A `proposed` job carries one extra field, the structured proposal the scout
+based it on:
+
+```jsonc
+{
+  // ...the standard fields above, with "status": "proposed"...
+  "proposal": {
+    "check": "testsForSources",          // which scout check found it
+    "fingerprint": "testsForSources:scripts/loop/queue-cli.mjs", // de-dup key
+    "description": "Plain-English why",   // also rendered into `spec`
+    "requirements": ["diff-checkable...", "..."], // what "done" looks like
+    "evidence": { "check": "...", "file": "...", "line": 12, "excerpt": "...", "occurrences": 1 },
+    "impactEffort": "Impact: ... Effort: ..."
+  }
+}
+```
+
+The same content is rendered into the job's `spec`, so promoting a proposal to
+`queued` gives the runner a complete, diff-checkable brief.
 
 ## Adding a job
 
