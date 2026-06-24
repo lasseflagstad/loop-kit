@@ -88,9 +88,12 @@ test('loadConfig throws a ConfigError for missing or invalid JSON files', () => 
   assert.throws(() => loadConfig(path), /not valid JSON/);
 });
 
-test('the shipped loop.config.json is valid', async () => {
-  // Guard against the repo's own config drifting out of spec.
+test('the repo loop.config.json loads and is valid', () => {
+  // Guard against this repo's own config drifting out of spec. Stated as a
+  // generic invariant so the suite stays correct when the installer copies it
+  // into a target repo whose config differs: the config must load, list at
+  // least one required check, and pick a supported merge mode.
   const c = loadConfig(new URL('../../../loop.config.json', import.meta.url).pathname);
-  assert.ok(c.requiredChecks.includes('check'));
-  assert.equal(c.mergeMode, 'auto-merge-on-green');
+  assert.ok(Array.isArray(c.requiredChecks) && c.requiredChecks.length > 0);
+  assert.ok(['auto-merge-on-green', 'tee-up'].includes(c.mergeMode));
 });

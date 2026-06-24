@@ -10,16 +10,21 @@
   "scripts": {
     "test": "node --test \"scripts/loop/tests/**/*.test.mjs\"",
     "check": "node --test \"scripts/loop/tests/**/*.test.mjs\"",
-    "confirm-green": "node scripts/loop/confirm-green.mjs"
+    "confirm-green": "node scripts/loop/confirm-green.mjs",
+    "install-loop": "node scripts/loop/install.mjs",
+    "verify": "node scripts/loop/verify.mjs"
   },
   "bin": {
     "loop-confirm-green": "scripts/loop/confirm-green.mjs",
-    "loop-queue": "scripts/loop/queue-cli.mjs"
+    "loop-queue": "scripts/loop/queue-cli.mjs",
+    "loop-install": "scripts/loop/install.mjs",
+    "loop-verify": "scripts/loop/verify.mjs"
   },
   "files": [
     "scripts/loop",
     "loop.config.json",
     "loop.config.schema.json",
-    ".loop"
+    ".loop",
+    ".claude"
   ]
 }
