@@ -15,13 +15,26 @@
 const QUEUE_VERSION = 1;
 const ID_WIDTH = 3;
 
-const VALID_STATUSES = new Set(['queued', 'in_progress', 'shipped', 'blocked']);
+const VALID_STATUSES = new Set([
+  'proposed',
+  'queued',
+  'in_progress',
+  'shipped',
+  'blocked',
+]);
 
 // Fields that may never change after a job is created.
 const IMMUTABLE_FIELDS = ['id', 'title', 'spec', 'createdAt'];
 
 // Allowed status transitions. 'shipped' is terminal (no outgoing edges).
+//
+// 'proposed' is the scout's entry point: a read-only proposer may only ADD
+// proposed jobs, and a human promotes one into the runnable backlog ('queued')
+// or parks it ('blocked'). A proposed job is never runnable - the runner only
+// picks 'queued' jobs (see nextQueuedJob) - so a proposal can never be built
+// without a human first approving it into 'queued'.
 const TRANSITIONS = {
+  proposed: ['queued', 'blocked'],
   queued: ['in_progress', 'blocked'],
   in_progress: ['shipped', 'blocked', 'queued'],
   blocked: ['queued', 'in_progress'],
@@ -123,6 +136,128 @@ export function addJob(q, { title, spec, humanGated = false, createdAt }) {
   const next = clone(q);
   next.jobs.push(job);
   return next;
+}
+
+// renderProposalSpec turns a proposal's parts into the human-readable spec the
+// runner would build from if a human approves the proposal into the queue. It
+// is a pure string transform so it can be tested directly. (No em-dashes: the
+// kit forbids them, and the scout itself proposes fixing any it finds.)
+export function renderProposalSpec({ description, requirements, evidence, impactEffort }) {
+  const lines = [];
+  lines.push(description);
+  lines.push('');
+  lines.push('## Requirements (diff-checkable)');
+  for (const r of requirements) lines.push(`- [ ] ${r}`);
+  lines.push('');
+  lines.push('## Evidence');
+  const where = evidence.line ? `${evidence.file} (line ${evidence.line})` : evidence.file;
+  const occ = evidence.occurrences && evidence.occurrences > 1
+    ? ` [occurrences: ${evidence.occurrences}]`
+    : '';
+  lines.push(`${evidence.check} in ${where}${occ}`);
+  if (evidence.excerpt) lines.push(`  ${evidence.excerpt}`);
+  lines.push('');
+  lines.push('## Impact and effort');
+  lines.push(impactEffort);
+  lines.push('');
+  lines.push(
+    '(Proposed by the scout. A human approves this into the queue before it is built.)'
+  );
+  return lines.join('\n');
+}
+
+// addProposedJob appends a new PROPOSED job and returns a NEW queue. This is the
+// only way the scout writes work: it ADDS proposed jobs, it never edits or
+// removes existing ones (it shares addJob's pure-append discipline). A proposed
+// job carries, beyond the standard fields, a structured `proposal` payload: the
+// plain-English description, a diff-checkable requirements list, the exact
+// finding it is based on (evidence), an impact-and-effort note, and a stable
+// fingerprint used to avoid re-proposing the same finding on a later scan.
+export function addProposedJob(q, {
+  title,
+  description,
+  requirements,
+  evidence,
+  impactEffort,
+  fingerprint,
+  humanGated = false,
+  createdAt,
+}) {
+  validateQueue(q);
+  if (typeof title !== 'string' || title.length === 0) {
+    throw new QueueError('addProposedJob requires a non-empty title');
+  }
+  if (typeof description !== 'string' || description.length === 0) {
+    throw new QueueError('addProposedJob requires a non-empty description');
+  }
+  if (!Array.isArray(requirements) || requirements.length === 0) {
+    throw new QueueError('addProposedJob requires a non-empty requirements list');
+  }
+  for (const r of requirements) {
+    if (typeof r !== 'string' || r.length === 0) {
+      throw new QueueError('each requirement must be a non-empty string');
+    }
+  }
+  if (typeof evidence !== 'object' || evidence === null) {
+    throw new QueueError('addProposedJob requires an evidence object');
+  }
+  if (typeof evidence.check !== 'string' || evidence.check.length === 0) {
+    throw new QueueError('evidence.check must be a non-empty string');
+  }
+  if (typeof evidence.file !== 'string' || evidence.file.length === 0) {
+    throw new QueueError('evidence.file must be a non-empty string');
+  }
+  if (typeof impactEffort !== 'string' || impactEffort.length === 0) {
+    throw new QueueError('addProposedJob requires a non-empty impactEffort note');
+  }
+  if (typeof fingerprint !== 'string' || fingerprint.length === 0) {
+    throw new QueueError('addProposedJob requires a non-empty fingerprint');
+  }
+  if (typeof createdAt !== 'string' || createdAt.length === 0) {
+    throw new QueueError('addProposedJob requires a createdAt timestamp');
+  }
+  if (typeof humanGated !== 'boolean') {
+    throw new QueueError('humanGated must be a boolean');
+  }
+
+  const spec = renderProposalSpec({ description, requirements, evidence, impactEffort });
+  const job = {
+    id: nextId(q),
+    title,
+    spec,
+    status: 'proposed',
+    humanGated,
+    createdAt,
+    branch: null,
+    pr: null,
+    headSha: null,
+    shippedAt: null,
+    note: null,
+    proposal: {
+      check: evidence.check,
+      fingerprint,
+      description,
+      requirements: [...requirements],
+      evidence: { ...evidence },
+      impactEffort,
+    },
+  };
+  const next = clone(q);
+  next.jobs.push(job);
+  return next;
+}
+
+// fingerprintsInQueue returns the set of proposal fingerprints already present
+// in the queue (in any status). The scout uses it to propose a finding at most
+// once: a finding whose fingerprint is already recorded is skipped, so re-runs
+// never pile up duplicate proposals.
+export function fingerprintsInQueue(q) {
+  const seen = new Set();
+  for (const job of q.jobs) {
+    const fp = job.proposal && job.proposal.fingerprint;
+    if (typeof fp === 'string' && fp.length > 0) seen.add(fp);
+  }
+  return seen;
 }
 
 export function getJob(q, id) {

@@ -29,6 +29,7 @@ scripts/loop/
   queue-lib.mjs             add-only queue transforms and guards
   queue-io.mjs              atomic read/write for the queue
   queue-cli.mjs             operator CLI: add / list / next
+  scout-scan.mjs            read-only scanner that proposes jobs (CLI)
   decisions-lib.mjs         add-only decisions ledger transforms and guards
   decisions-io.mjs          atomic read/write for the ledger
   decisions.mjs             ask, act-on-answer, and the no-bypass safety boundary
@@ -39,6 +40,7 @@ scripts/loop/
   tests/                    the kit's own test suite
 .claude/
   commands/run-next.md      the runner procedure
+  commands/scout.md         the scout procedure (propose jobs)
   settings.example.json     how to wire the notify Stop hook
 .github/workflows/check.yml CI that runs the kit's tests (the gate)
 ```
@@ -201,6 +203,71 @@ follow the steps yourself). One run does exactly one job:
    - `tee-up`: leave the PR for a human.
    - `auto-merge-on-green`: run `confirm-green`; squash-merge only on exit 0.
 5. Fire the notify ping and stop.
+
+## The scout: proposing jobs
+
+The scout is a read-only job-proposer. It scans the repo, ranks what it finds,
+and ADDS up to `scout.maxProposals` jobs to the queue as `proposed`, for a human
+to approve. The runner procedure is `.claude/commands/scout.md` (invoke
+`/scout`); the scanner is `scripts/loop/scout-scan.mjs`.
+
+```sh
+node scripts/loop/scout-scan.mjs            # scan and write proposed jobs
+node scripts/loop/scout-scan.mjs --dry-run  # scan and print, write nothing
+```
+
+Every check is config-driven via the `scout` section of `loop.config.json` and
+individually toggleable. The defaults are generic and broadly safe:
+
+- **emDash** - em-dash characters (the kit forbids them).
+- **todoMarkers** - leftover TODO/FIXME markers in code.
+- **testsForSources** - source files with no matching test.
+- **oversizedAssets** - committed files over `maxAssetBytes` (default 500 KB).
+- **brokenInternalLinks** - internal links that resolve to nothing *(off by
+  default; for repos that build a site)*.
+- **missingMetaDescription** - HTML pages with no meta description *(off by
+  default; for repos that build a site)*.
+
+Each proposed job carries a plain-English description, a **diff-checkable**
+requirements list, the exact finding it is based on (evidence), and an
+impact-and-effort note. A finding already proposed is skipped on later scans
+(matched by a fingerprint), so re-runs do not pile up duplicates.
+
+Two guarantees make the scout safe to run unattended:
+
+- **It only ADDS `proposed` jobs.** It never edits or removes a `queued`,
+  `in_progress`, `blocked`, or `shipped` job, and it modifies no source file.
+- **A proposal is never auto-built.** The runner only picks `queued` jobs, so a
+  proposal sits inert until a human promotes it (changing its status from
+  `proposed` to `queued`). Auto-promotion is deliberately out of scope.
+
+The scout's PR adds only queue entries, so it touches no dangerous edge and
+auto-ships on green.
+
+**Honest scope.** A code-scanning scout finds mechanical hygiene (lint, missing
+tests, dead links, SEO, oversized assets). It does **not** propose product or
+feature work, which needs human judgment and data the scout cannot see. For a
+repo whose remaining work is judgment-heavy, it will propose little. That is
+expected, not a bug.
+
+The scout section of `loop.config.json` (all fields optional; omitted fields use
+the defaults above):
+
+```jsonc
+"scout": {
+  "maxProposals": 5,
+  "checks": {
+    "emDash": true,
+    "todoMarkers": true,
+    "testsForSources": true,
+    "oversizedAssets": true,
+    "brokenInternalLinks": false,
+    "missingMetaDescription": false
+  }
+  // also optional: include, exclude, maxAssetBytes, sourceExtensions,
+  // commentScanExtensions, siteDir
+}
+```
 
 ## How to confirm green
 

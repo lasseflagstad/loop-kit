@@ -13,6 +13,18 @@ export const DEFAULT_CONFIG_PATH = 'loop.config.json';
 const VALID_NOTIFY_CHANNELS = new Set(['none', 'file', 'webhook', 'command']);
 const VALID_MERGE_MODES = new Set(['auto-merge-on-green', 'tee-up']);
 
+// The closed set of scout checks. A typo'd check name is rejected rather than
+// silently ignored. The operational defaults for each (and for everything else
+// in the scout section) live in scout-scan.mjs; this validates shape only.
+const VALID_SCOUT_CHECKS = new Set([
+  'emDash',
+  'todoMarkers',
+  'testsForSources',
+  'oversizedAssets',
+  'brokenInternalLinks',
+  'missingMetaDescription',
+]);
+
 class ConfigError extends Error {
   constructor(message) {
     super(message);
@@ -31,6 +43,68 @@ function requireNonEmptyString(value, field) {
     throw new ConfigError(`${field} must be a non-empty string`);
   }
   return value;
+}
+
+function requireStringArray(value, field) {
+  if (!Array.isArray(value)) {
+    throw new ConfigError(`${field} must be an array of non-empty strings`);
+  }
+  return value.map((v, i) => requireNonEmptyString(v, `${field}[${i}]`));
+}
+
+function requirePositiveInteger(value, field) {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new ConfigError(`${field} must be a positive integer`);
+  }
+  return value;
+}
+
+// Validate the optional `scout` section's shape. Defaults for omitted fields are
+// applied by scout-scan.mjs (resolveScout), so this returns only the keys the
+// repo actually set. Toggle names are checked against a closed set so a typo is
+// caught rather than silently doing nothing.
+function validateScout(raw) {
+  if (!isPlainObject(raw)) {
+    throw new ConfigError('scout must be an object');
+  }
+  const scout = {};
+  if (raw.maxProposals !== undefined) {
+    scout.maxProposals = requirePositiveInteger(raw.maxProposals, 'scout.maxProposals');
+  }
+  if (raw.checks !== undefined) {
+    if (!isPlainObject(raw.checks)) {
+      throw new ConfigError('scout.checks must be an object of booleans');
+    }
+    const checks = {};
+    for (const [name, on] of Object.entries(raw.checks)) {
+      if (!VALID_SCOUT_CHECKS.has(name)) {
+        throw new ConfigError(`unknown scout check: ${name}`);
+      }
+      if (typeof on !== 'boolean') {
+        throw new ConfigError(`scout.checks.${name} must be a boolean`);
+      }
+      checks[name] = on;
+    }
+    scout.checks = checks;
+  }
+  if (raw.include !== undefined) scout.include = requireStringArray(raw.include, 'scout.include');
+  if (raw.exclude !== undefined) scout.exclude = requireStringArray(raw.exclude, 'scout.exclude');
+  if (raw.sourceExtensions !== undefined) {
+    scout.sourceExtensions = requireStringArray(raw.sourceExtensions, 'scout.sourceExtensions');
+  }
+  if (raw.commentScanExtensions !== undefined) {
+    scout.commentScanExtensions = requireStringArray(
+      raw.commentScanExtensions,
+      'scout.commentScanExtensions'
+    );
+  }
+  if (raw.maxAssetBytes !== undefined) {
+    scout.maxAssetBytes = requirePositiveInteger(raw.maxAssetBytes, 'scout.maxAssetBytes');
+  }
+  if (raw.siteDir !== undefined && raw.siteDir !== null) {
+    scout.siteDir = requireNonEmptyString(raw.siteDir, 'scout.siteDir');
+  }
+  return scout;
 }
 
 // validateConfig takes the parsed JSON and returns a normalized, fully
@@ -138,6 +212,14 @@ export function validateConfig(raw) {
     migrations = { dir, numberWidth };
   }
 
+  // scout: optional. When present, its shape is validated here; operational
+  // defaults are filled by scout-scan.mjs so the scanner works with or without
+  // a configured section.
+  let scout;
+  if (raw.scout !== undefined) {
+    scout = validateScout(raw.scout);
+  }
+
   return {
     requiredChecks: [...requiredChecks],
     dangerousEdges,
@@ -146,6 +228,7 @@ export function validateConfig(raw) {
     mergeMode,
     ...(decisions ? { decisions } : {}),
     ...(migrations ? { migrations } : {}),
+    ...(scout ? { scout } : {}),
   };
 }
 

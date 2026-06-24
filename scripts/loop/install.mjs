@@ -39,6 +39,7 @@ export const KIT_COPY_PATHS = [
   'loop.config.schema.json',
   '.loop/README.md',
   '.claude/commands/run-next.md',
+  '.claude/commands/scout.md',
   '.claude/settings.example.json',
 ];
 
