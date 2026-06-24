@@ -1,0 +1,16 @@
+{
+  "//": "Copy the hooks block into your repo's .claude/settings.json to wire the one-way notify ping when the loop runner stops. The channel and target come from loop.config.json, so this line is the same for every repo.",
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/loop/notify.mjs \"loop runner stopped\""
+          }
+        ]
+      }
+    ]
+  }
+}

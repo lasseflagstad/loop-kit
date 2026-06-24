@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/lasseflagstad/loop-kit/loop.config.schema.json",
+  "title": "Loop Kit configuration",
+  "description": "The single point of per-repo configuration for the Loop Kit. Nothing in the kit is hardcoded; every per-repo decision lives here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["requiredChecks", "branchPrefix", "mergeMode"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional path or URL to this schema."
+    },
+    "requiredChecks": {
+      "type": "array",
+      "description": "The name(s) of the CI status check(s) that form the green-gate. The gate requires ALL of these to have concluded success for the exact head SHA. Must be non-empty: a gate with no required checks would let everything through.",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "dangerousEdges": {
+      "type": "array",
+      "description": "Glob patterns for files whose modification makes a job human-gated. A job that touches any of these must be approved by a human before it ships.",
+      "default": [],
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "branchPrefix": {
+      "type": "string",
+      "description": "Prefix for branches the runner creates, e.g. 'claude/'.",
+      "default": "claude/",
+      "minLength": 1
+    },
+    "notify": {
+      "type": "object",
+      "description": "One-way ping configuration for when the runner stops.",
+      "additionalProperties": false,
+      "default": { "channel": "none" },
+      "required": ["channel"],
+      "properties": {
+        "channel": {
+          "type": "string",
+          "description": "Where to send the stop ping. 'none' disables notification.",
+          "enum": ["none", "file", "webhook", "command"]
+        },
+        "target": {
+          "type": "string",
+          "description": "Channel-specific target: a file path (file), a URL (webhook), or a shell command template (command). Ignored for 'none'."
+        }
+      }
+    },
+    "mergeMode": {
+      "type": "string",
+      "description": "What the runner does after a green PR. 'auto-merge-on-green' squash-merges once the gate is green; 'tee-up' builds and leaves the PR for a human.",
+      "enum": ["auto-merge-on-green", "tee-up"]
+    },
+    "migrations": {
+      "type": "object",
+      "description": "Migration discipline configuration. Omit if the repo has no migrations.",
+      "additionalProperties": false,
+      "properties": {
+        "dir": {
+          "type": "string",
+          "description": "Directory holding migration files, relative to the repo root.",
+          "minLength": 1
+        },
+        "numberWidth": {
+          "type": "integer",
+          "description": "Zero-padded width of the central migration number prefix, e.g. 4 for 0001_*.",
+          "minimum": 1,
+          "default": 4
+        }
+      },
+      "required": ["dir"]
+    }
+  }
+}
