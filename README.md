@@ -20,6 +20,8 @@ loop.config.schema.json     JSON Schema for the config (editor validation)
   queue.json                the append-only job queue
   README.md                 the queue's schema and rules
 scripts/loop/
+  install.mjs               one-step installer: drop the loop into any repo (CLI)
+  verify.mjs                confirms an install is live (CLI)
   config.mjs                loads and validates loop.config.json
   green-gate.mjs            pure gate logic: is this SHA green?
   confirm-green.mjs         enforces the gate via the GitHub API (CLI)
@@ -38,14 +40,81 @@ scripts/loop/
 
 ## Quick start in a target repo
 
-1. Copy the kit's `scripts/loop/`, `.loop/`, `loop.config.json`,
-   `loop.config.schema.json`, and `.claude/commands/run-next.md` into the repo.
-2. Edit `loop.config.json` for the repo (see below).
-3. Make sure your CI publishes a status check whose name matches one of
-   `requiredChecks`. The kit's own CI uses a job named `check`.
-4. Optionally wire the notify Stop hook (copy the block from
-   `.claude/settings.example.json` into `.claude/settings.json`).
-5. Add jobs to the queue and run the loop.
+One command, run from the kit against the repo you want to add the loop to:
+
+```sh
+node scripts/loop/install.mjs /path/to/your/repo
+```
+
+That copies the machinery in, generates `loop.config.json`, seeds an empty
+queue, merges a loop section into the repo's `CLAUDE.md` / `AGENTS.md`, and adds
+a baseline CI workflow if the repo has none. Then, from inside the target repo:
+
+```sh
+node scripts/loop/verify.mjs   # confirms the install is live
+```
+
+Review the few generated config values, wire the optional notify hook, add jobs,
+and run the loop. The full walkthrough is in [INSTALL.md](INSTALL.md).
+
+The installer is safe to re-run: it never clobbers your `loop.config.json` or
+queue and never double-adds the loop section. See "Installing into a repo" below
+for the flags and what each step does.
+
+## Installing into a repo
+
+`scripts/loop/install.mjs <target-repo-path>` does all of the following, and
+reports exactly what it created, updated, or left alone:
+
+1. Copies the kit's machinery (`scripts/loop/`, the schema, the runner procedure
+   in `.claude/commands/run-next.md`, the notify hook example, and the queue
+   README) into the target.
+2. Generates `loop.config.json` from flags or sensible defaults. It never
+   overwrites an existing one.
+3. Seeds an empty `.loop/queue.json` (an existing queue, with its jobs, is left
+   untouched).
+4. Merges a loop section into the target's `CLAUDE.md` (or `AGENTS.md` if that is
+   what the repo uses, or a new `CLAUDE.md` if neither exists): how to verify,
+   the branch rule, and the stop-and-ask rule. The section is bounded by markers
+   so a re-run replaces it in place rather than adding a second copy.
+5. Adds a baseline CI workflow (`.github/workflows/loop-check.yml`) **only if the
+   target has no CI yet**. The workflow's check is named after your first
+   required check and runs the loop's own tests, so a fresh repo has a working
+   green-gate out of the box. If the repo already has CI, no workflow is added
+   and the installer tells you to point `requiredChecks` at your real check.
+
+Flags (all optional; everything has a sensible default):
+
+```sh
+node scripts/loop/install.mjs /path/to/repo \
+  --check <name>            # a required CI check (repeatable; default "check")
+  --dangerous-edge <glob>   # a human-gated path (repeatable; sensible default)
+  --branch-prefix <prefix>  # default "claude/"
+  --notify-channel <c>      # none | file | webhook | command (default none)
+  --notify-target <t>       # required for a non-none channel
+  --merge-mode <m>          # auto-merge-on-green | tee-up (default auto-merge-on-green)
+  --migrations-dir <dir>    # enable migration discipline for this directory
+  --migrations-number-width <n>
+```
+
+Re-running is safe and idempotent: a second run with the same kit produces no
+changes, keeps your config and queue, and does not duplicate the loop section.
+
+## Confirming the install is live
+
+From inside the target repo:
+
+```sh
+node scripts/loop/verify.mjs
+```
+
+`verify` checks three things and reports a clear pass or a clear list of what is
+missing (exit 0 live, 1 incomplete):
+
+- the green-gate can resolve every configured CI check (`loop.config.json` loads
+  and validates, and each `requiredChecks` name is produced by some workflow),
+- `.loop/queue.json` exists and parses,
+- the runner command (`.claude/commands/run-next.md`) is present.
 
 ## Filling in `loop.config.json`
 
