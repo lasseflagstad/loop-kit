@@ -17,7 +17,8 @@ It prints every file it created, updated, or left alone. In one pass it:
 - copies the loop machinery into your app (`scripts/loop/`, the schema, the
   runner procedure, the notify hook example),
 - creates `loop.config.json`,
-- seeds an empty job queue at `.loop/queue.json`,
+- seeds an empty job queue at `.loop/queue.json` and an empty decisions ledger
+  at `.loop/decisions.json`,
 - adds a loop section to your app's `CLAUDE.md` (or `AGENTS.md`),
 - adds a CI workflow that runs the loop's tests, but only if your app has no CI
   yet.

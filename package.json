@@ -17,6 +17,7 @@
   "bin": {
     "loop-confirm-green": "scripts/loop/confirm-green.mjs",
     "loop-queue": "scripts/loop/queue-cli.mjs",
+    "loop-decisions": "scripts/loop/decisions-cli.mjs",
     "loop-install": "scripts/loop/install.mjs",
     "loop-verify": "scripts/loop/verify.mjs"
   },

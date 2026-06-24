@@ -351,6 +351,17 @@ export function installLoop({ targetDir, kitRoot, options = {} } = {}) {
     actions.push({ path: '.loop/queue.json', action: 'created' });
   }
 
+  // 3b. Seed an empty decisions ledger, never overwriting an existing one (it
+  //     may hold recorded answers).
+  const decisionsPath = resolve(target, '.loop/decisions.json');
+  if (existsSync(decisionsPath)) {
+    actions.push({ path: '.loop/decisions.json', action: 'kept-existing' });
+  } else {
+    mkdirSync(dirname(decisionsPath), { recursive: true });
+    writeFileSync(decisionsPath, JSON.stringify({ version: 1, decisions: [] }, null, 2) + '\n', 'utf8');
+    actions.push({ path: '.loop/decisions.json', action: 'created' });
+  }
+
   // 4. Merge the loop section into the rulebook.
   const rbPath = rulebookPath(target);
   const existing = existsSync(rbPath) ? readFileSync(rbPath, 'utf8') : '';

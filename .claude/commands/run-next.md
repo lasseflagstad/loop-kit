@@ -20,11 +20,35 @@ Read `loop.config.json`. You will use:
 - `branchPrefix` - prefix for the branch you create (default `claude/`).
 - `mergeMode` - `auto-merge-on-green` or `tee-up`.
 - `notify` - where to ping when you stop.
+- `decisions` - optional answers inbox for the two-way decision surface.
+
+## 0.5 Apply answered decisions
+
+Before picking a job, act on any decisions you answered since the last run:
+
+```
+node scripts/loop/decisions-cli.mjs apply
+```
+
+This ingests replies from the configured answers inbox (if any), then acts on
+every answered-but-unapplied decision: an `approve` promotes a proposed job into
+the run queue (or records the go-ahead on a human-gated job), a `skip` parks it.
+Acting is idempotent, and it NEVER un-gates a job or bypasses the merge gate: an
+approved human-gated job still goes through the human gate at merge time.
 
 ## 1. Pick the next job
 
 Run `node scripts/loop/queue-cli.mjs next` (this skips human-gated jobs). If it
-prints `(no queued job)`, stop: there is nothing to do. Notify and end.
+prints `(no queued job)`, there is nothing to build this run. Before you stop,
+ask about anything awaiting your decision:
+
+```
+node scripts/loop/decisions-cli.mjs ask-pending
+```
+
+This records and notifies (exactly once, keyed) a plain-English question for
+each proposed job that could be promoted and each human-gated job awaiting a
+go-ahead, with exactly how to answer. Then notify and end.
 
 If the chosen job is human-gated, do NOT run it autonomously. Stop and tell the
 operator it needs explicit authorization.

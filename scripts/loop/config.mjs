@@ -105,6 +105,21 @@ export function validateConfig(raw) {
     );
   }
 
+  // decisions: optional. The two-way async decision surface. When present, an
+  // optional `inbox` names a file the kit reads one-line replies from on its
+  // next run ("<decision-id> <answer>" per line). Omit it and the only way to
+  // answer is the `loop-decisions answer` command (or editing the ledger).
+  let decisions;
+  if (raw.decisions !== undefined) {
+    if (!isPlainObject(raw.decisions)) {
+      throw new ConfigError('decisions must be an object');
+    }
+    decisions = {};
+    if (raw.decisions.inbox !== undefined) {
+      decisions.inbox = requireNonEmptyString(raw.decisions.inbox, 'decisions.inbox');
+    }
+  }
+
   // migrations: optional. When present, dir is required and numberWidth
   // defaults to 4.
   let migrations;
@@ -129,6 +144,7 @@ export function validateConfig(raw) {
     branchPrefix,
     notify,
     mergeMode,
+    ...(decisions ? { decisions } : {}),
     ...(migrations ? { migrations } : {}),
   };
 }
