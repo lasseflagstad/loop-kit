@@ -54,6 +54,21 @@ test('notify.channel is validated and target is required for non-none channels',
   assert.deepEqual(c.notify, { channel: 'file', target: '.loop/notify.log' });
 });
 
+test('decisions is optional and, when present, validates an optional inbox path', () => {
+  // Absent by default.
+  assert.equal('decisions' in validateConfig(MINIMAL), false);
+  // An empty decisions block is allowed (no inbox configured).
+  assert.deepEqual(validateConfig({ ...MINIMAL, decisions: {} }).decisions, {});
+  // A configured inbox is carried through.
+  assert.deepEqual(
+    validateConfig({ ...MINIMAL, decisions: { inbox: '.loop/answers.inbox' } }).decisions,
+    { inbox: '.loop/answers.inbox' }
+  );
+  // A non-object decisions block, or an empty inbox string, is rejected.
+  assert.throws(() => validateConfig({ ...MINIMAL, decisions: 'x' }), ConfigError);
+  assert.throws(() => validateConfig({ ...MINIMAL, decisions: { inbox: '' } }), ConfigError);
+});
+
 test('migrations defaults numberWidth to 4 and requires dir', () => {
   const c = validateConfig({ ...MINIMAL, migrations: { dir: 'db/migrations' } });
   assert.deepEqual(c.migrations, { dir: 'db/migrations', numberWidth: 4 });

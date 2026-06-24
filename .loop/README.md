@@ -49,3 +49,46 @@ List jobs, or see what the runner would pick next:
 node scripts/loop/queue-cli.mjs list
 node scripts/loop/queue-cli.mjs next   # skips human-gated jobs
 ```
+
+## `decisions.json` - the two-way decisions ledger
+
+`decisions.json` is a second append-only ledger, same discipline as the queue.
+The loop is fire-and-forget: a scheduled run cannot pause and wait for you to
+reply. So the two non-merge decisions it might need (approve a proposed job, or
+give a go-ahead on a human-gated one) are handled **asynchronously**: the runner
+records a question and notifies you, you answer in your own time, and the next
+run reads your answer and acts on it.
+
+It never touches the merge gate. An approved human-gated job still goes through
+the human gate at merge time; an approval only records the go-ahead to BUILD.
+
+### Decision schema
+
+```jsonc
+{
+  "id": "001",                 // immutable, zero-padded, assigned centrally
+  "key": "promote:002",        // immutable; makes a question ask-once (kind:job)
+  "kind": "promote",           // "promote" (proposed job) | "go-ahead" (human-gated)
+  "job": "002",                // the job this decision is about
+  "question": "Proposed job 002 ... How to answer: ...",  // plain English + how
+  "answers": ["approve", "skip"],  // the allowed answers
+  "answer": null,              // null until you reply; then frozen
+  "askedAt": "2026-06-24T00:00:00.000Z",  // immutable
+  "answeredAt": null,          // set when you answer
+  "appliedAt": null            // set when the next run acts on the answer
+}
+```
+
+### Answering a decision
+
+The always-available way, no GitHub needed:
+
+```sh
+node scripts/loop/decisions-cli.mjs list                 # see open decisions
+node scripts/loop/decisions-cli.mjs answer 001 approve   # approve / skip by id
+```
+
+If `decisions.inbox` is set in `loop.config.json`, you can instead append a
+one-line reply (`<decision-id> <answer>`, blank lines and `#` comments ignored)
+to that file from the notify channel; the next `apply` reads and records it.
+Editing `decisions.json` by hand works too. Acting on an answer is idempotent.

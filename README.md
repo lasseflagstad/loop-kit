@@ -18,7 +18,8 @@ loop.config.json            the single point of per-repo configuration
 loop.config.schema.json     JSON Schema for the config (editor validation)
 .loop/
   queue.json                the append-only job queue
-  README.md                 the queue's schema and rules
+  decisions.json            the append-only two-way decisions ledger
+  README.md                 the queue's and ledger's schema and rules
 scripts/loop/
   install.mjs               one-step installer: drop the loop into any repo (CLI)
   verify.mjs                confirms an install is live (CLI)
@@ -28,6 +29,10 @@ scripts/loop/
   queue-lib.mjs             add-only queue transforms and guards
   queue-io.mjs              atomic read/write for the queue
   queue-cli.mjs             operator CLI: add / list / next
+  decisions-lib.mjs         add-only decisions ledger transforms and guards
+  decisions-io.mjs          atomic read/write for the ledger
+  decisions.mjs             ask, act-on-answer, and the no-bypass safety boundary
+  decisions-cli.mjs         operator/runner CLI: list / ask / ask-pending / answer / apply
   policy.mjs                human-gates and migration discipline
   glob.mjs                  dependency-free glob matcher
   notify.mjs                one-way ping when the runner stops (CLI)
@@ -149,15 +154,21 @@ missing (exit 0 live, 1 incomplete):
   //   tee-up               build and leave the PR open for a human
   "mergeMode": "auto-merge-on-green",
 
+  // Optional. The two-way async decision surface. `inbox` is a file the kit
+  // reads one-line replies from on its next run. Omit it to answer only via
+  // the `loop-decisions answer` command.
+  "decisions": { "inbox": ".loop/answers.inbox" },
+
   // Optional. Only if the repo has migrations.
   "migrations": { "dir": "db/migrations", "numberWidth": 4 }
 }
 ```
 
 Defaults if you omit a field: `branchPrefix` is `claude/`, `dangerousEdges` is
-empty, `notify` is `{ "channel": "none" }`. `requiredChecks` and `mergeMode` are
-required. `requiredChecks` must be non-empty: a gate with no required checks
-would let everything through, so the loader rejects it.
+empty, `notify` is `{ "channel": "none" }`, and `decisions` is absent (answer
+only via the CLI). `requiredChecks` and `mergeMode` are required.
+`requiredChecks` must be non-empty: a gate with no required checks would let
+everything through, so the loader rejects it.
 
 ## How to add a job
 
@@ -204,6 +215,40 @@ node scripts/loop/confirm-green.mjs --sha <head-sha>
 ```
 
 Exit codes: `0` green (safe to merge), `1` not green (refuse), `2` usage error.
+
+## Two-way decisions (answer the loop asynchronously)
+
+The most common decision the loop needs (should this ready PR ship) you already
+answer by merging it on your phone, and notify pings you to do it. The decisions
+ledger covers the two that are not just "merge this PR": **approving a proposed
+job** and **giving a go-ahead on a human-gated job**, without you opening GitHub.
+
+Because scheduled cloud runs are fire-and-forget, this is **asynchronous**: the
+loop asks, you answer in the channel, and the *next* run acts on your answer.
+
+- When the runner has nothing to build but a job is awaiting your decision, it
+  records a keyed entry in `.loop/decisions.json` and notifies you (through the
+  same `notify`) with the plain-English question and exactly how to answer. The
+  same question is never asked, or pinged, twice.
+- You answer without GitHub. The always-available way is the CLI:
+
+  ```sh
+  node scripts/loop/decisions-cli.mjs list                 # open decisions
+  node scripts/loop/decisions-cli.mjs answer 001 approve   # approve / skip by id
+  ```
+
+  Optionally set `decisions.inbox` in `loop.config.json` to a file path; append
+  a one-line reply (`<decision-id> <answer>`) to it from your channel and the
+  next run reads it. Editing `.loop/decisions.json` by hand also works.
+- On the next run, before picking a job, the runner runs `decisions-cli.mjs
+  apply`: an `approve` promotes the proposed job into the run queue (or records
+  the go-ahead on a human-gated job); a `skip` parks it. Acting is idempotent.
+
+**An approval never bypasses the merge gate.** Approving a human-gated job
+records the go-ahead to BUILD only: the job stays human-gated, the autonomous
+runner still skips it, and the dangerous-edge human gate at merge time is
+untouched. `decisions.mjs` never sets `humanGated`, never ships, and never
+calls `confirm-green`. See `.loop/README.md` for the ledger schema.
 
 ## The safety rules
 

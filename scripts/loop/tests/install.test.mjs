@@ -26,6 +26,7 @@ import {
 } from '../install.mjs';
 import { loadConfig } from '../config.mjs';
 import { readQueue } from '../queue-io.mjs';
+import { readLedger } from '../decisions-io.mjs';
 
 // The kit root, resolved by the installer itself (robust regardless of where
 // this test file sits in the tree).
@@ -143,6 +144,22 @@ test('installLoop installs a complete, valid loop into a bare target', () => {
   // Queue seeded and parses.
   const q = readQueue(join(target, '.loop/queue.json'));
   assert.deepEqual(q.jobs, []);
+
+  // Decisions ledger seeded and parses.
+  assert.ok(existsSync(join(target, '.loop/decisions.json')), 'expected decisions ledger seeded');
+  const ledger = readLedger(join(target, '.loop/decisions.json'));
+  assert.deepEqual(ledger.decisions, []);
+  assert.equal(actionFor(report, '.loop/decisions.json'), 'created');
+
+  // Decisions machinery copied.
+  for (const f of [
+    'scripts/loop/decisions-lib.mjs',
+    'scripts/loop/decisions-io.mjs',
+    'scripts/loop/decisions.mjs',
+    'scripts/loop/decisions-cli.mjs',
+  ]) {
+    assert.ok(existsSync(join(target, f)), `expected ${f} to be copied`);
+  }
 
   // Rulebook created with the loop section.
   const rb = readFileSync(join(target, 'CLAUDE.md'), 'utf8');

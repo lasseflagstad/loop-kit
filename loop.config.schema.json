@@ -53,6 +53,18 @@
       "description": "What the runner does after a green PR. 'auto-merge-on-green' squash-merges once the gate is green; 'tee-up' builds and leaves the PR for a human.",
       "enum": ["auto-merge-on-green", "tee-up"]
     },
+    "decisions": {
+      "type": "object",
+      "description": "The two-way async decision surface. The loop can ask a yes/no question (approve a proposed job, or give a go-ahead on a human-gated one) and act on your reply on its next run. An approval never bypasses the merge-time human gate.",
+      "additionalProperties": false,
+      "properties": {
+        "inbox": {
+          "type": "string",
+          "description": "Optional file the kit reads one-line replies from on its next run, one per line as '<decision-id> <answer>'. Omit it to answer only via the 'loop-decisions answer' command (or by editing the ledger).",
+          "minLength": 1
+        }
+      }
+    },
     "migrations": {
       "type": "object",
       "description": "Migration discipline configuration. Omit if the repo has no migrations.",
