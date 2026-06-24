@@ -1,0 +1,25 @@
+{
+  "name": "loop-kit",
+  "version": "1.0.0",
+  "description": "A reusable, repo-agnostic autonomous loop kit: a queue, a runner, a self-enforcing green-gate, a safety policy, and a notify hook, parameterized by a single loop.config.json.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "node --test \"scripts/loop/tests/**/*.test.mjs\"",
+    "check": "node --test \"scripts/loop/tests/**/*.test.mjs\"",
+    "confirm-green": "node scripts/loop/confirm-green.mjs"
+  },
+  "bin": {
+    "loop-confirm-green": "scripts/loop/confirm-green.mjs",
+    "loop-queue": "scripts/loop/queue-cli.mjs"
+  },
+  "files": [
+    "scripts/loop",
+    "loop.config.json",
+    "loop.config.schema.json",
+    ".loop"
+  ]
+}

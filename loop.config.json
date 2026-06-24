@@ -1,0 +1,15 @@
+{
+  "$schema": "./loop.config.schema.json",
+  "requiredChecks": ["check"],
+  "dangerousEdges": [
+    ".github/workflows/**",
+    "loop.config.json",
+    "scripts/loop/**",
+    "**/migrations/**"
+  ],
+  "branchPrefix": "claude/",
+  "notify": {
+    "channel": "none"
+  },
+  "mergeMode": "auto-merge-on-green"
+}

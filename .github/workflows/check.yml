@@ -1,0 +1,21 @@
+name: check
+
+# The kit's own green-gate. This workflow runs the loop tests; its check run is
+# named "check" (after the job below), which is exactly the name loop.config.json
+# lists in requiredChecks. The kit proves itself with the same gate it ships.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run loop tests
+        run: npm run check
