@@ -1,4 +1,36 @@
 {
   "version": 1,
-  "jobs": []
+  "jobs": [
+    {
+      "id": "001",
+      "title": "Add a test for scripts/loop/queue-cli.mjs",
+      "spec": "scripts/loop/queue-cli.mjs has no matching test file (nothing named queue-cli.test.* or queue-cli.spec.*, and no tests/queue-cli.* sibling). Untested code can regress without the gate noticing. Add a focused test for its behavior.\n\n## Requirements (diff-checkable)\n- [ ] Create a test file for scripts/loop/queue-cli.mjs (for example tests/queue-cli.test.mjs or queue-cli.test.mjs).\n- [ ] The test imports from scripts/loop/queue-cli.mjs and exercises its exported behavior, including at least one edge case.\n- [ ] The repo's check command (for example npm run check) runs the new test and passes.\n\n## Evidence\ntestsForSources in scripts/loop/queue-cli.mjs\n\n## Impact and effort\nImpact: medium to high (untested code can regress silently). Effort: medium (write focused tests).\n\n(Proposed by the scout. A human approves this into the queue before it is built.)",
+      "status": "proposed",
+      "humanGated": true,
+      "createdAt": "2026-06-24T14:13:03.214Z",
+      "branch": null,
+      "pr": null,
+      "headSha": null,
+      "shippedAt": null,
+      "note": null,
+      "proposal": {
+        "check": "testsForSources",
+        "fingerprint": "testsForSources:scripts/loop/queue-cli.mjs",
+        "description": "scripts/loop/queue-cli.mjs has no matching test file (nothing named queue-cli.test.* or queue-cli.spec.*, and no tests/queue-cli.* sibling). Untested code can regress without the gate noticing. Add a focused test for its behavior.",
+        "requirements": [
+          "Create a test file for scripts/loop/queue-cli.mjs (for example tests/queue-cli.test.mjs or queue-cli.test.mjs).",
+          "The test imports from scripts/loop/queue-cli.mjs and exercises its exported behavior, including at least one edge case.",
+          "The repo's check command (for example npm run check) runs the new test and passes."
+        ],
+        "evidence": {
+          "check": "testsForSources",
+          "file": "scripts/loop/queue-cli.mjs",
+          "line": null,
+          "excerpt": "",
+          "occurrences": 1
+        },
+        "impactEffort": "Impact: medium to high (untested code can regress silently). Effort: medium (write focused tests)."
+      }
+    }
+  ]
 }
