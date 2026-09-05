@@ -28,6 +28,7 @@ import { resolve, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateConfig } from './config.mjs';
 import { collectWorkflowCheckNames } from './verify.mjs';
+import { isDirectInvocation } from './direct.mjs';
 
 // ---------------------------------------------------------------------------
 // What the kit copies into a target. These are repo-root-relative paths. A
@@ -40,7 +41,9 @@ export const KIT_COPY_PATHS = [
   '.loop/README.md',
   '.claude/commands/run-next.md',
   '.claude/commands/scout.md',
+  '.claude/commands/astra.md',
   '.claude/settings.example.json',
+  'PROOF.md',
 ];
 
 // The kit's own files that must never be copied verbatim into a target, even if
@@ -100,6 +103,13 @@ export function buildConfig(options = {}) {
     branchPrefix,
     notify,
     mergeMode,
+    astra: {
+      enabled: true,
+      command: 'codex',
+      model: 'gpt-6-astra',
+      reasoningEffort: 'high',
+      sandbox: 'workspace-write',
+    },
   };
 
   if (options.migrationsDir) {
@@ -163,6 +173,8 @@ export function loopRulebookSection() {
     'and idempotent only. When in doubt, stop and ask.',
     '',
     'See `.claude/commands/run-next.md` for the full runner procedure.',
+    'Use `/astra` to delegate one bounded task to GPT-6 Astra through Codex,',
+    'then inspect the diff and run the checks yourself before continuing.',
     LOOP_MARKER_END,
     '',
   ].join('\n');
@@ -486,9 +498,7 @@ function main(argv) {
   return 0;
 }
 
-const invokedDirectly =
-  process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
-if (invokedDirectly) {
+if (isDirectInvocation(import.meta.url)) {
   process.exit(main(process.argv.slice(2)));
 }
 

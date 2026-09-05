@@ -1,9 +1,14 @@
 {
   "name": "loop-kit",
-  "version": "1.0.0",
-  "description": "A reusable, repo-agnostic autonomous loop kit: a queue, a runner, a self-enforcing green-gate, a safety policy, and a notify hook, parameterized by a single loop.config.json.",
+  "version": "1.1.0",
+  "description": "A reusable Claude Code orchestration loop with a pinned GPT-6 Astra worker, queue, green-gate, and safety policy.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lasseflagstad/loop-kit.git"
+  },
+  "keywords": ["claude-code", "codex", "gpt-6-astra", "orchestration", "agents"],
   "engines": {
     "node": ">=20.0.0"
   },
@@ -12,20 +17,24 @@
     "check": "node --test \"scripts/loop/tests/**/*.test.mjs\"",
     "confirm-green": "node scripts/loop/confirm-green.mjs",
     "install-loop": "node scripts/loop/install.mjs",
-    "verify": "node scripts/loop/verify.mjs"
+    "verify": "node scripts/loop/verify.mjs",
+    "astra": "node scripts/loop/astra.mjs",
+    "astra:doctor": "node scripts/loop/astra.mjs doctor"
   },
   "bin": {
     "loop-confirm-green": "scripts/loop/confirm-green.mjs",
     "loop-queue": "scripts/loop/queue-cli.mjs",
     "loop-decisions": "scripts/loop/decisions-cli.mjs",
     "loop-install": "scripts/loop/install.mjs",
-    "loop-verify": "scripts/loop/verify.mjs"
+    "loop-verify": "scripts/loop/verify.mjs",
+    "loop-astra": "scripts/loop/astra.mjs"
   },
   "files": [
     "scripts/loop",
     "loop.config.json",
     "loop.config.schema.json",
     ".loop",
-    ".claude"
+    ".claude",
+    "PROOF.md"
   ]
 }

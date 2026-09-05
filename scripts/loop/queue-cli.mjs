@@ -9,6 +9,7 @@
 
 import { readQueue, writeQueue, DEFAULT_QUEUE_PATH } from './queue-io.mjs';
 import { addJob, nextQueuedJob } from './queue-lib.mjs';
+import { isDirectInvocation } from './direct.mjs';
 
 function parseArgs(argv) {
   const args = { _: [], queuePath: DEFAULT_QUEUE_PATH };
@@ -88,9 +89,7 @@ function main(argv, env, now) {
   return 2;
 }
 
-const invokedDirectly =
-  process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
-if (invokedDirectly) {
+if (isDirectInvocation(import.meta.url)) {
   process.exit(main(process.argv.slice(2), process.env, Date.now()));
 }
 

@@ -1,15 +1,40 @@
-# Loop Kit
+# Claude + Astra Loop Kit
 
-A reusable, repo-agnostic autonomous loop. Drop it into any app and that repo
-ships work the same proven way: a queue holds jobs, a runner builds one job at a
-time, a self-enforcing green-gate decides what may merge, and a safety policy
-keeps the dangerous edges under human control.
+A free, installable orchestration loop that lets Claude Code delegate bounded
+software tasks to GPT-6 Astra through the Codex CLI. Claude runs the spec and
+owns the shipping decision. Astra can build, review, or plan. The existing
+queue, tests, and green-gate decide what may merge.
+
+The bridge pins `gpt-6-astra` on every call. It does not rename another model or
+rely on a user's default. A live doctor command proves whether the current
+machine and account can actually run Astra. See [PROOF.md](PROOF.md) for the
+exact claim this package supports and its limits.
 
 Everything in the kit is generalized. Nothing about any one app is hardcoded.
 One file, `loop.config.json`, configures the kit for your repo.
 
-The kit has no runtime dependencies. It is plain Node (>= 20) and the built-in
-test runner, so it adds nothing to your repo's dependency tree.
+The kit has no runtime dependencies. It is plain Node (>= 20), Claude Code, and
+the Codex CLI. It adds nothing to your app's dependency tree.
+
+## Install in five minutes
+
+Prerequisites: Git, Node 20+, Claude Code, and Codex CLI authenticated with an
+account that has GPT-6 Astra access.
+
+From the repository where you want the loop:
+
+```sh
+npm exec --yes --package=github:lasseflagstad/loop-kit -- loop-install "$PWD"
+node scripts/loop/verify.mjs
+node scripts/loop/astra.mjs doctor --live
+```
+
+Then open Claude Code in that repository and run `/astra`. Give it one bounded
+task, or add a job to the queue and run `/run-next`.
+
+The live doctor is the proof step. It checks the CLI, authentication, the pinned
+model name, and a real read-only Astra response. It fails rather than silently
+substituting a different model.
 
 ## What is in the box
 
@@ -21,6 +46,7 @@ loop.config.schema.json     JSON Schema for the config (editor validation)
   decisions.json            the append-only two-way decisions ledger
   README.md                 the queue's and ledger's schema and rules
 scripts/loop/
+  astra.mjs                 safe Claude-to-Astra bridge and live doctor (CLI)
   install.mjs               one-step installer: drop the loop into any repo (CLI)
   verify.mjs                confirms an install is live (CLI)
   config.mjs                loads and validates loop.config.json
@@ -39,15 +65,17 @@ scripts/loop/
   notify.mjs                one-way ping when the runner stops (CLI)
   tests/                    the kit's own test suite
 .claude/
+  commands/astra.md         Claude's bounded delegation procedure
   commands/run-next.md      the runner procedure
   commands/scout.md         the scout procedure (propose jobs)
   settings.example.json     how to wire the notify Stop hook
 .github/workflows/check.yml CI that runs the kit's tests (the gate)
+PROOF.md                    the public claim, evidence, and limits
 ```
 
-## Quick start in a target repo
+## Install from a local clone
 
-One command, run from the kit against the repo you want to add the loop to:
+If you cloned this kit, run its installer against the repo you want to upgrade:
 
 ```sh
 node scripts/loop/install.mjs /path/to/your/repo
@@ -63,6 +91,25 @@ node scripts/loop/verify.mjs   # confirms the install is live
 
 Review the few generated config values, wire the optional notify hook, add jobs,
 and run the loop. The full walkthrough is in [INSTALL.md](INSTALL.md).
+
+## Delegate to Astra
+
+Claude Code can invoke the installed `/astra` command. The underlying command
+is also available directly:
+
+```sh
+node scripts/loop/astra.mjs run --mode build \
+  --task "Implement the queued job. Stay inside src/payments. Run focused tests."
+```
+
+Modes:
+
+- `build` allows edits inside Codex's `workspace-write` sandbox.
+- `review` and `plan` are forced into a `read-only` sandbox.
+
+The bridge passes arguments directly to the Codex process and never invokes a
+shell. It does not expose a danger-full-access option. Claude must inspect the
+diff and rerun the relevant checks before accepting the handback.
 
 The installer is safe to re-run: it never clobbers your `loop.config.json` or
 queue and never double-adds the loop section. See "Installing into a repo" below
@@ -155,6 +202,15 @@ missing (exit 0 live, 1 incomplete):
   //   auto-merge-on-green  squash-merge once the gate is green
   //   tee-up               build and leave the PR open for a human
   "mergeMode": "auto-merge-on-green",
+
+  // Claude-to-Astra bridge. These defaults produce the public proof.
+  "astra": {
+    "enabled": true,
+    "command": "codex",
+    "model": "gpt-6-astra",
+    "reasoningEffort": "high",
+    "sandbox": "workspace-write"
+  },
 
   // Optional. The two-way async decision surface. `inbox` is a file the kit
   // reads one-line replies from on its next run. Omit it to answer only via

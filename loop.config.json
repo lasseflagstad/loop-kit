@@ -12,6 +12,13 @@
     "channel": "none"
   },
   "mergeMode": "auto-merge-on-green",
+  "astra": {
+    "enabled": true,
+    "command": "codex",
+    "model": "gpt-6-astra",
+    "reasoningEffort": "high",
+    "sandbox": "workspace-write"
+  },
   "scout": {
     "maxProposals": 5,
     "checks": {

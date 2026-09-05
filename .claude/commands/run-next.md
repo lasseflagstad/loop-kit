@@ -61,6 +61,16 @@ library will refuse anything that breaks add-only discipline).
 Read the repo's own rulebook (`CLAUDE.md` / `AGENTS.md` / contributing docs) and
 build the job's spec, following it. Stay inside the job's scope.
 
+You are the orchestrator. When a bounded second-model build, plan, or review
+would improve the job, delegate it to GPT-6 Astra through `/astra` or:
+
+```
+node scripts/loop/astra.mjs run --mode <build|review|plan> --task "<bounded task>"
+```
+
+The bridge pins `gpt-6-astra`. Inspect Astra's actual diff and handback, then run
+the relevant checks yourself. Never delegate the final merge decision.
+
 Before you finalize, compute the set of files you changed and re-check them
 against `dangerousEdges` (see `scripts/loop/policy.mjs` → `isHumanGated`). If the
 change now touches a dangerous edge, mark the job human-gated, stop, and hand
