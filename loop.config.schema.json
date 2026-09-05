@@ -53,6 +53,42 @@
       "description": "What the runner does after a green PR. 'auto-merge-on-green' squash-merges once the gate is green; 'tee-up' builds and leaves the PR for a human.",
       "enum": ["auto-merge-on-green", "tee-up"]
     },
+    "astra": {
+      "type": "object",
+      "description": "Claude Code to Codex worker bridge. Defaults pin GPT-6 Astra in a workspace-write sandbox.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether Claude may delegate bounded tasks through the Astra bridge.",
+          "default": true
+        },
+        "command": {
+          "type": "string",
+          "description": "Codex CLI executable name or absolute path.",
+          "default": "codex",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "description": "Exact Codex worker model. The public TrustOS claim is reproducible with gpt-6-astra.",
+          "default": "gpt-6-astra",
+          "minLength": 1
+        },
+        "reasoningEffort": {
+          "type": "string",
+          "description": "Reasoning effort passed to Codex for delegated work.",
+          "enum": ["low", "medium", "high", "xhigh", "max"],
+          "default": "high"
+        },
+        "sandbox": {
+          "type": "string",
+          "description": "Maximum sandbox used for build delegations. Plan and review are always read-only.",
+          "enum": ["read-only", "workspace-write"],
+          "default": "workspace-write"
+        }
+      }
+    },
     "decisions": {
       "type": "object",
       "description": "The two-way async decision surface. The loop can ask a yes/no question (approve a proposed job, or give a go-ahead on a human-gated one) and act on your reply on its next run. An approval never bypasses the merge-time human gate.",

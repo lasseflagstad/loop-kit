@@ -18,6 +18,7 @@
 
 import { loadConfig, DEFAULT_CONFIG_PATH } from './config.mjs';
 import { evaluateGate, GateError } from './green-gate.mjs';
+import { isDirectInvocation } from './direct.mjs';
 
 const GITHUB_API = 'https://api.github.com';
 
@@ -177,9 +178,7 @@ async function main(argv, env) {
 }
 
 // Run as a CLI when invoked directly (not when imported by tests).
-const invokedDirectly =
-  process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
-if (invokedDirectly) {
+if (isDirectInvocation(import.meta.url)) {
   main(process.argv.slice(2), process.env)
     .then((code) => process.exit(code))
     .catch((err) => {

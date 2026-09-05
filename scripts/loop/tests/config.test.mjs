@@ -17,6 +17,13 @@ test('validateConfig accepts a minimal config and applies defaults', () => {
   assert.deepEqual(c.notify, { channel: 'none' });
   assert.equal(c.mergeMode, 'tee-up');
   assert.equal('migrations' in c, false);
+  assert.deepEqual(c.astra, {
+    enabled: true,
+    command: 'codex',
+    model: 'gpt-6-astra',
+    reasoningEffort: 'high',
+    sandbox: 'workspace-write',
+  });
 });
 
 test('requiredChecks must be a non-empty array of unique non-empty strings', () => {
@@ -100,6 +107,20 @@ test('scout validation rejects unknown checks and bad shapes', () => {
   assert.throws(() => validateConfig({ ...MINIMAL, scout: { maxAssetBytes: -1 } }), ConfigError);
   assert.throws(() => validateConfig({ ...MINIMAL, scout: { include: 'x' } }), ConfigError);
   assert.throws(() => validateConfig({ ...MINIMAL, scout: [] }), ConfigError);
+});
+
+test('astra defaults to a safe GPT-6 Astra worker and validates overrides', () => {
+  const c = validateConfig({
+    ...MINIMAL,
+    astra: { reasoningEffort: 'max', sandbox: 'read-only' },
+  });
+  assert.equal(c.astra.model, 'gpt-6-astra');
+  assert.equal(c.astra.reasoningEffort, 'max');
+  assert.equal(c.astra.sandbox, 'read-only');
+  assert.throws(() => validateConfig({ ...MINIMAL, astra: [] }), ConfigError);
+  assert.throws(() => validateConfig({ ...MINIMAL, astra: { enabled: 'yes' } }), ConfigError);
+  assert.throws(() => validateConfig({ ...MINIMAL, astra: { reasoningEffort: 'none' } }), ConfigError);
+  assert.throws(() => validateConfig({ ...MINIMAL, astra: { sandbox: 'danger-full-access' } }), ConfigError);
 });
 
 test('validateConfig rejects non-objects', () => {

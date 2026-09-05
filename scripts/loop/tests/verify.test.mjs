@@ -66,6 +66,7 @@ test('verifyInstall passes when every fact holds', () => {
     config: { ok: true, requiredChecks: ['check'] },
     queue: { ok: true },
     runner: { present: true },
+    astra: { scriptPresent: true, commandPresent: true },
     workflowCheckNames: ['check'],
   });
   assert.equal(result.ok, true);
@@ -77,6 +78,7 @@ test('verifyInstall flags an unresolvable required check', () => {
     config: { ok: true, requiredChecks: ['check', 'deploy'] },
     queue: { ok: true },
     runner: { present: true },
+    astra: { scriptPresent: true, commandPresent: true },
     workflowCheckNames: ['check'],
   });
   assert.equal(result.ok, false);
@@ -90,6 +92,7 @@ test('verifyInstall flags a missing queue and a missing runner', () => {
     config: { ok: true, requiredChecks: ['check'] },
     queue: { ok: false, error: '.loop/queue.json does not exist' },
     runner: { present: false },
+    astra: { scriptPresent: true, commandPresent: true },
     workflowCheckNames: ['check'],
   });
   assert.equal(result.ok, false);
@@ -102,6 +105,7 @@ test('verifyInstall fails closed when the config does not load', () => {
     config: { ok: false, error: 'not valid JSON' },
     queue: { ok: true },
     runner: { present: true },
+    astra: { scriptPresent: true, commandPresent: true },
     workflowCheckNames: ['check'],
   });
   assert.equal(result.ok, false);

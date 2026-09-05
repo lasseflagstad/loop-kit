@@ -53,6 +53,8 @@ test('buildConfig applies sensible defaults', () => {
   assert.deepEqual(c.notify, { channel: 'none' });
   assert.deepEqual(c.dangerousEdges, defaultDangerousEdges());
   assert.equal(c.$schema, './loop.config.schema.json');
+  assert.equal(c.astra.model, 'gpt-6-astra');
+  assert.equal(c.astra.sandbox, 'workspace-write');
 });
 
 test('buildConfig honors flags and validates the result', () => {
@@ -130,8 +132,11 @@ test('installLoop installs a complete, valid loop into a bare target', () => {
     'scripts/loop/notify.mjs',
     'scripts/loop/verify.mjs',
     'scripts/loop/install.mjs',
+    'scripts/loop/astra.mjs',
     'loop.config.schema.json',
     '.claude/commands/run-next.md',
+    '.claude/commands/astra.md',
+    'PROOF.md',
   ]) {
     assert.ok(existsSync(join(target, f)), `expected ${f} to be copied`);
   }

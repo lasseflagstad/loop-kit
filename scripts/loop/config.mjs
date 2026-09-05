@@ -12,6 +12,8 @@ export const DEFAULT_CONFIG_PATH = 'loop.config.json';
 
 const VALID_NOTIFY_CHANNELS = new Set(['none', 'file', 'webhook', 'command']);
 const VALID_MERGE_MODES = new Set(['auto-merge-on-green', 'tee-up']);
+const VALID_ASTRA_EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
+const VALID_ASTRA_SANDBOXES = new Set(['read-only', 'workspace-write']);
 
 // The closed set of scout checks. A typo'd check name is rejected rather than
 // silently ignored. The operational defaults for each (and for everything else
@@ -220,6 +222,51 @@ export function validateConfig(raw) {
     scout = validateScout(raw.scout);
   }
 
+  // astra: the Claude Code to Codex worker bridge. Defaults pin GPT-6 Astra and
+  // stay inside Codex's workspace-write sandbox. danger-full-access is
+  // deliberately not accepted here.
+  let astra = {
+    enabled: true,
+    command: 'codex',
+    model: 'gpt-6-astra',
+    reasoningEffort: 'high',
+    sandbox: 'workspace-write',
+  };
+  if (raw.astra !== undefined) {
+    if (!isPlainObject(raw.astra)) {
+      throw new ConfigError('astra must be an object');
+    }
+    astra = { ...astra };
+    if (raw.astra.enabled !== undefined) {
+      if (typeof raw.astra.enabled !== 'boolean') {
+        throw new ConfigError('astra.enabled must be a boolean');
+      }
+      astra.enabled = raw.astra.enabled;
+    }
+    if (raw.astra.command !== undefined) {
+      astra.command = requireNonEmptyString(raw.astra.command, 'astra.command');
+    }
+    if (raw.astra.model !== undefined) {
+      astra.model = requireNonEmptyString(raw.astra.model, 'astra.model');
+    }
+    if (raw.astra.reasoningEffort !== undefined) {
+      if (!VALID_ASTRA_EFFORTS.has(raw.astra.reasoningEffort)) {
+        throw new ConfigError(
+          `astra.reasoningEffort must be one of: ${[...VALID_ASTRA_EFFORTS].join(', ')}`
+        );
+      }
+      astra.reasoningEffort = raw.astra.reasoningEffort;
+    }
+    if (raw.astra.sandbox !== undefined) {
+      if (!VALID_ASTRA_SANDBOXES.has(raw.astra.sandbox)) {
+        throw new ConfigError(
+          `astra.sandbox must be one of: ${[...VALID_ASTRA_SANDBOXES].join(', ')}`
+        );
+      }
+      astra.sandbox = raw.astra.sandbox;
+    }
+  }
+
   return {
     requiredChecks: [...requiredChecks],
     dangerousEdges,
@@ -229,6 +276,7 @@ export function validateConfig(raw) {
     ...(decisions ? { decisions } : {}),
     ...(migrations ? { migrations } : {}),
     ...(scout ? { scout } : {}),
+    astra,
   };
 }
 

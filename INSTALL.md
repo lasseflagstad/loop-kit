@@ -1,10 +1,27 @@
-# Add the loop to a new app
+# Add the Claude + Astra loop to a new app
 
 This is the short version. To put the loop into a brand-new app, you run one
 command, fill in a few config values, and confirm it is live. That is the whole
 setup.
 
+## 0. Prerequisites
+
+- Git and Node.js 20 or newer
+- Claude Code installed and authenticated
+- Codex CLI installed and authenticated with GPT-6 Astra access
+
+The bridge works with ChatGPT-based Codex login or an API-backed Codex setup.
+It does not copy, read, or store either provider's credentials.
+
 ## 1. Run the one command
+
+From the target app, install directly from GitHub:
+
+```sh
+npm exec --yes --package=github:lasseflagstad/loop-kit -- loop-install "$PWD"
+```
+
+Or, from a local clone of this kit, point the installer at the app:
 
 From the Loop Kit, point the installer at the repo you want to add the loop to:
 
@@ -19,6 +36,7 @@ It prints every file it created, updated, or left alone. In one pass it:
 - creates `loop.config.json`,
 - seeds an empty job queue at `.loop/queue.json` and an empty decisions ledger
   at `.loop/decisions.json`,
+- adds `/astra`, `/run-next`, and `/scout` commands for Claude Code,
 - adds a loop section to your app's `CLAUDE.md` (or `AGENTS.md`),
 - adds a CI workflow that runs the loop's tests, but only if your app has no CI
   yet.
@@ -44,6 +62,9 @@ Open `loop.config.json` in your app and confirm or adjust:
 - **`mergeMode`** - `auto-merge-on-green` (squash-merge once the gate is green)
   or `tee-up` (build and leave the PR for a human). Default
   `auto-merge-on-green`.
+- **`astra`** - the worker bridge. Keep `model` as `gpt-6-astra` to reproduce
+  the TrustOS claim. Plan and review are always read-only even when the build
+  sandbox is `workspace-write`.
 
 You can also set any of these at install time with flags (see
 `node scripts/loop/install.mjs --help`), so the generated file already has them.
@@ -54,13 +75,27 @@ From inside your app:
 
 ```sh
 node scripts/loop/verify.mjs
+node scripts/loop/astra.mjs doctor --live
 ```
 
-A pass means the loop is wired up: the gate can resolve your CI check, the queue
-is in place, and the runner procedure is present. If anything is missing, it
-tells you exactly what.
+The first command verifies the local loop files, queue, runner, and CI mapping.
+The live doctor verifies Codex installation, authentication, the exact pinned
+model, and a real read-only GPT-6 Astra call. If access has not reached the
+current account, it fails clearly and does not substitute another model.
 
-## 4. Use it
+## 4. Delegate one task
+
+Open Claude Code and run `/astra`, or use the bridge directly:
+
+```sh
+node scripts/loop/astra.mjs run --mode review \
+  --task "Review the current diff for correctness. Do not edit files."
+```
+
+Claude remains responsible for inspecting the worker's output, rerunning tests,
+and deciding whether the work continues through the merge gate.
+
+## 5. Run the full loop
 
 Add a job and run the loop:
 

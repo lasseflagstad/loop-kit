@@ -16,6 +16,7 @@
 import { appendFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { loadConfig, DEFAULT_CONFIG_PATH } from './config.mjs';
+import { isDirectInvocation } from './direct.mjs';
 
 function runCommand(template, message, env) {
   return new Promise((resolve, reject) => {
@@ -95,9 +96,7 @@ async function main(argv, env) {
   return 0;
 }
 
-const invokedDirectly =
-  process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
-if (invokedDirectly) {
+if (isDirectInvocation(import.meta.url)) {
   main(process.argv.slice(2), process.env).then((code) => process.exit(code));
 }
 

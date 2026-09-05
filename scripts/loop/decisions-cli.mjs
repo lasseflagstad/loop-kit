@@ -20,6 +20,7 @@ import { resolve } from 'node:path';
 import { loadConfig, DEFAULT_CONFIG_PATH } from './config.mjs';
 import { readQueue, writeQueue, DEFAULT_QUEUE_PATH } from './queue-io.mjs';
 import { readLedger, writeLedger, DEFAULT_DECISIONS_PATH } from './decisions-io.mjs';
+import { isDirectInvocation } from './direct.mjs';
 import { getJob } from './queue-lib.mjs';
 import { answerDecision, findDecision } from './decisions-lib.mjs';
 import {
@@ -246,9 +247,7 @@ export async function main(argv, env, now) {
   }
 }
 
-const invokedDirectly =
-  process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
-if (invokedDirectly) {
+if (isDirectInvocation(import.meta.url)) {
   main(process.argv.slice(2), process.env, Date.now()).then((code) => process.exit(code));
 }
 

@@ -12,6 +12,7 @@
 //      workflow in .github/workflows (a job id or a name: value).
 //   2. The queue file exists and parses.
 //   3. The runner command is present (.claude/commands/run-next.md).
+//   4. The Astra bridge and Claude command are present.
 //
 // It reports a clear pass or a clear list of what is missing.
 //
@@ -24,6 +25,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { loadConfig } from './config.mjs';
 import { readQueue } from './queue-io.mjs';
+import { isDirectInvocation } from './direct.mjs';
 
 // ---------------------------------------------------------------------------
 // Pure: extract the check names a workflow file can produce. A GitHub check run
@@ -90,6 +92,7 @@ function unquote(s) {
 //   config:   { ok, error?, requiredChecks? },
 //   queue:    { ok, error? },
 //   runner:   { present },
+//   astra:    { scriptPresent, commandPresent },
 //   workflowCheckNames: string[],
 // }
 // Returns { ok, checks: [{ name, ok, detail }], missing: string[] }.
@@ -99,6 +102,7 @@ export function verifyInstall(facts = {}) {
   const config = facts.config ?? { ok: false, error: 'no config result' };
   const queue = facts.queue ?? { ok: false, error: 'no queue result' };
   const runner = facts.runner ?? { present: false };
+  const astra = facts.astra ?? { scriptPresent: false, commandPresent: false };
   const workflowNames = facts.workflowCheckNames ?? [];
 
   // 1. config loads and validates.
@@ -106,6 +110,15 @@ export function verifyInstall(facts = {}) {
     name: 'loop.config.json loads and validates',
     ok: !!config.ok,
     detail: config.ok ? 'valid' : `cannot load config: ${config.error}`,
+  });
+
+  checks.push({
+    name: 'Claude to Astra bridge is present',
+    ok: !!astra.scriptPresent && !!astra.commandPresent,
+    detail:
+      astra.scriptPresent && astra.commandPresent
+        ? 'script and /astra command present'
+        : 'missing scripts/loop/astra.mjs or .claude/commands/astra.md',
   });
 
   // 2. every required check resolves to some workflow.
@@ -183,10 +196,15 @@ export function collectFacts(targetDir = '.') {
     present: existsSync(resolve(root, '.claude/commands/run-next.md')),
   };
 
+  const astra = {
+    scriptPresent: existsSync(resolve(root, 'scripts/loop/astra.mjs')),
+    commandPresent: existsSync(resolve(root, '.claude/commands/astra.md')),
+  };
+
   // workflow check names
   const workflowCheckNames = collectWorkflowCheckNames(root);
 
-  return { config, queue, runner, workflowCheckNames };
+  return { config, queue, runner, astra, workflowCheckNames };
 }
 
 function collectWorkflowCheckNames(root) {
@@ -222,8 +240,8 @@ function parseArgs(argv) {
 
 const USAGE = `Usage: verify [target-repo-path]
 
-Confirms a Loop Kit install is live: the green-gate can resolve every configured
-CI check, the queue exists and parses, and the runner command is present.
+Confirms a Loop Kit install is live: the green-gate resolves every configured
+CI check, the queue parses, and the runner plus Astra bridge are present.
 
 Exit codes: 0 live, 1 incomplete, 2 usage error.`;
 
@@ -251,9 +269,7 @@ function main(argv) {
   return 1;
 }
 
-const invokedDirectly =
-  process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
-if (invokedDirectly) {
+if (isDirectInvocation(import.meta.url)) {
   process.exit(main(process.argv.slice(2)));
 }
 
